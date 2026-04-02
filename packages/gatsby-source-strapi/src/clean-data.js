@@ -49,22 +49,20 @@ const getAttributes = (data, version) => {
   return data;
 };
 
-// Recursively finds the latest updatedAt and publishedAt dates in the data object.
+// Recursively finds the latest updatedAt or publishedAt date in the data object.
 // This ensures that caching mechanisms that rely on these timestamps will work correctly
 // when nested relations have more recent updates than their parent entities.
-const findLatestDates = (data) => {
-  let maxUpdatedAt;
-  let maxPublishedAt;
+const findMaxUpdateOrPublishDate = (data) => {
+  let maxUpdateOrPublishDate;
 
   // helper function to check and update the max dates
   function checkDate(value, key) {
-    if (typeof value === "string" && (key === "updatedAt" || key === "publishedAt")) {
-      if (key === "updatedAt" && (!maxUpdatedAt || value > maxUpdatedAt)) {
-        maxUpdatedAt = value;
-      }
-      if (key === "publishedAt" && (!maxPublishedAt || value > maxPublishedAt)) {
-        maxPublishedAt = value;
-      }
+    if (
+      typeof value === "string" &&
+      (key === "updatedAt" || key === "publishedAt") &&
+      (!maxUpdateOrPublishDate || value > maxUpdateOrPublishDate)
+    ) {
+      maxUpdateOrPublishDate = value;
     }
   }
 
@@ -83,7 +81,7 @@ const findLatestDates = (data) => {
   }
 
   traverse(data);
-  return { updatedAt: maxUpdatedAt, publishedAt: maxPublishedAt };
+  return maxUpdateOrPublishDate;
 };
 
 /**
@@ -227,10 +225,8 @@ export const cleanData = (data, context, version = 5) => {
     schemas,
     version,
   );
-  const latest = findLatestDates(cleaned);
   return {
     ...cleaned,
-    updatedAt: latest.updatedAt || cleaned.updatedAt || undefined,
-    publishedAt: latest.publishedAt || cleaned.publishedAt || undefined,
+    strapi_timestamp: findMaxUpdateOrPublishDate(cleaned) || undefined,
   };
 };
