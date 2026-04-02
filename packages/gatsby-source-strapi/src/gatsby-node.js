@@ -106,7 +106,28 @@ export const sourceNodes = async (
     );
   }
 
-  const data = newOrExistingEntries || allResults;
+  let data;
+
+  if (newOrExistingEntries) {
+    // The newOrExistingEntries fetch only includes entities whose top-level updatedAt
+    // changed in Strapi. Also include any parent entities from the initial full scrape
+    // of Strapi (allResults) whose nested relations changed since the last fetch
+    // (detected via strapi_deep_freshness_date).
+    const lastFetchedIso = new Date(lastFetched).toISOString();
+
+    data = newOrExistingEntries.map((deltaEntries, index) => {
+      const deltaIds = new Set(deltaEntries.map((entry) => entry.documentId || entry.id));
+
+      const nestedUpdates = allResults[index].filter((entity) => {
+        const id = entity.documentId || entity.id;
+        return !deltaIds.has(id) && entity.strapi_deep_freshness_date > lastFetchedIso;
+      });
+
+      return [...deltaEntries, ...nestedUpdates];
+    });
+  } else {
+    data = allResults;
+  }
 
   // Build a map of all nodes with the gatsby id and the strapi_id
   const existingNodesMap = buildMapFromNodes(existingNodes);

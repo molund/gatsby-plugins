@@ -1,6 +1,6 @@
 import _ from "lodash";
 
-import { getContentTypeSchema } from "./helpers";
+import { getContentTypeSchema, findMaxUpdateOrPublishDate } from "./helpers";
 
 const MEDIA_FIELDS = [
   "id",
@@ -47,41 +47,6 @@ const getAttributes = (data, version) => {
   }
   // assume v5
   return data;
-};
-
-// Recursively finds the latest updatedAt or publishedAt date in the data object.
-// This ensures that caching mechanisms that rely on these timestamps will work correctly
-// when nested relations have more recent updates than their parent entities.
-const findMaxUpdateOrPublishDate = (data) => {
-  let maxUpdateOrPublishDate;
-
-  // helper function to check and update the max dates
-  function checkDate(value, key) {
-    if (
-      typeof value === "string" &&
-      (key === "updatedAt" || key === "publishedAt") &&
-      (!maxUpdateOrPublishDate || value > maxUpdateOrPublishDate)
-    ) {
-      maxUpdateOrPublishDate = value;
-    }
-  }
-
-  // recursive function to traverse the entire data object
-  function traverse(node) {
-    if (Array.isArray(node)) {
-      for (const value of node) {
-        traverse(value);
-      }
-    } else if (node && typeof node === "object") {
-      for (const [key, value] of Object.entries(node)) {
-        checkDate(value, key);
-        traverse(value);
-      }
-    }
-  }
-
-  traverse(data);
-  return maxUpdateOrPublishDate;
 };
 
 /**
@@ -225,8 +190,9 @@ export const cleanData = (data, context, version = 5) => {
     schemas,
     version,
   );
+  const strapi_deep_freshness_date = findMaxUpdateOrPublishDate(cleaned) || undefined;
   return {
     ...cleaned,
-    strapi_timestamp: findMaxUpdateOrPublishDate(cleaned) || undefined,
+    strapi_deep_freshness_date,
   };
 };

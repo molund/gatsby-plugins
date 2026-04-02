@@ -177,10 +177,43 @@ const makeParentNodeName = (schemas, uid) => {
   return _.toUpper(nodeName);
 };
 
+const findMaxUpdateOrPublishDate = (data) => {
+  let maxUpdateOrPublishDate;
+
+  // helper function to check and update the max dates
+  const checkDate = (value, key) => {
+    if (
+      typeof value === "string" &&
+      (key === "updatedAt" || key === "publishedAt") &&
+      (!maxUpdateOrPublishDate || value > maxUpdateOrPublishDate)
+    ) {
+      maxUpdateOrPublishDate = value;
+    }
+  };
+
+  // recursive function to traverse the entire data object
+  const traverse = (node) => {
+    if (Array.isArray(node)) {
+      for (const value of node) {
+        traverse(value);
+      }
+    } else if (node && typeof node === "object") {
+      for (const [key, value] of Object.entries(node)) {
+        checkDate(value, key);
+        traverse(value);
+      }
+    }
+  };
+
+  traverse(data);
+  return maxUpdateOrPublishDate;
+};
+
 export {
   buildMapFromNodes,
   buildMapFromData,
   buildNodesToRemoveMap,
+  findMaxUpdateOrPublishDate,
   getContentTypeSchema,
   getEndpoints,
   makeParentNodeName,
